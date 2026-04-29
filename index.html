@@ -2,83 +2,401 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Ôn tập KHTN | Lê Thị Việt Hà</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Trắc Nghiệm KHTN | Học Sinh</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;700&display=swap');
-        body { font-family: 'Lexend', sans-serif; background: #0f172a; color: white; }
-        .class-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid rgba(255,255,255,0.05); }
-        .class-card:hover { transform: translateY(-5px); background: rgba(255,255,255,0.05); border-color: #10b981; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; background-color: #e6fbf0; color: #334155; }
+        
+        /* Tối ưu thanh cuộn cho Windows */
+        .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; border: 2px solid transparent; background-clip: padding-box; }
+        
+        .bubble-btn { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid #cbd5e1; cursor: pointer; transition: all 0.2s; background: white; color: #64748b; }
+        .bubble-btn:hover { border-color: #22c55e; color: #22c55e; }
+        .bubble-btn.selected { background-color: #22c55e; color: white; border-color: #22c55e; box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4); }
+        
+        /* Render nội dung đề soạn từ Quill */
+        .exam-content img { max-width: 100%; border-radius: 8px; }
+        .exam-content p { margin-bottom: 0.75em; line-height: 1.6; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6">
-    <div id="root" class="w-full max-w-6xl"></div>
+<body>
+    <div id="root"></div>
+
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-        const Icon = ({ name, size = 18 }) => {
-            const ref = React.useRef(null);
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        const Icon = ({ name, size = 16, className = "" }) => {
+            const ref = useRef(null);
             useEffect(() => { if (window.lucide) window.lucide.createIcons({ root: ref.current }); }, [name]);
-            return <span ref={ref}><i data-lucide={name} style={{width: size, height: size}}></i></span>;
+            return <span ref={ref} className={className}><i data-lucide={name} style={{width: size, height: size}}></i></span>;
+        };
+
+        const getExamStatus = (openTime, closeTime) => {
+            if (!openTime && !closeTime) return { state: 'OPEN', label: 'Tự do', class: 'bg-slate-100 text-slate-500' };
+            const now = new Date().getTime();
+            const start = openTime ? new Date(openTime).getTime() : 0;
+            const end = closeTime ? new Date(closeTime).getTime() : Infinity;
+
+            if (now < start) return { state: 'WAITING', label: 'Chưa tới giờ', class: 'bg-yellow-50 text-yellow-600 border border-yellow-200' };
+            if (now >= start && now <= end) return { state: 'OPEN', label: 'Đang mở', class: 'bg-emerald-50 text-emerald-600 border border-emerald-200' };
+            return { state: 'CLOSED', label: 'Đã đóng', class: 'bg-rose-50 text-rose-600 border border-rose-200' };
         };
 
         const App = () => {
-            const [exams] = useState(() => JSON.parse(localStorage.getItem('tMath_Exams') || '[]'));
-            const [selectedClass, setSelectedClass] = useState(null);
+            const [view, setView] = useState('HOME'); // HOME, EXAM_LIST, LOGIN, TESTING, RESULT
+            const [selectedGrade, setSelectedGrade] = useState('');
+            const [selectedExam, setSelectedExam] = useState(null);
+            const [selectedStudent, setSelectedStudent] = useState(null);
+            
+            // Testing States
+            const [answers, setAnswers] = useState({});
+            const [timeLeft, setTimeLeft] = useState(0);
+            const [scoreInfo, setScoreInfo] = useState(null);
 
-            // Lấy danh sách lớp duy nhất
-            const classes = useMemo(() => {
-                const unique = [...new Set(exams.map(e => e.className))];
-                return unique.sort();
-            }, [exams]);
+            // Dữ liệu từ Admin
+            const exams = useMemo(() => JSON.parse(localStorage.getItem('tMath_Exams') || '[]'), [view]);
+            const students = useMemo(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'), [view]);
 
-            const filteredExams = useMemo(() => {
-                return exams.filter(e => e.className === selectedClass);
-            }, [exams, selectedClass]);
+            // Lọc các lớp có trong đề
+            const availableGrades = useMemo(() => {
+                return ['LỚP 6', 'LỚP 7', 'LỚP 8', 'LỚP 9']; // Tương ứng nút
+            }, []);
 
-            if (selectedClass) {
+            // Xử lý chuyển trang danh sách đề
+            const handleGradeSelect = (gradeText) => {
+                setSelectedGrade(gradeText);
+                setView('EXAM_LIST');
+            };
+
+            // Mở modal yêu cầu chọn tên học sinh
+            const handleExamClick = (exam) => {
+                const status = getExamStatus(exam.openTime, exam.closeTime);
+                if (status.state === 'WAITING') return alert('Bài thi chưa tới giờ mở!');
+                if (status.state === 'CLOSED') return alert('Bài thi đã đóng!');
+                
+                setSelectedExam(exam);
+                setView('LOGIN');
+            };
+
+            // Bắt đầu làm bài
+            const startExam = (studentId) => {
+                if(!studentId) return alert("Vui lòng chọn tên của bạn!");
+                const student = students.find(s => s.id === parseInt(studentId));
+                setSelectedStudent(student);
+                setAnswers({});
+                setTimeLeft(selectedExam.duration * 60);
+                setView('TESTING');
+            };
+
+            // Timer cho bài thi
+            useEffect(() => {
+                let timer;
+                if (view === 'TESTING' && timeLeft > 0) {
+                    timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+                } else if (view === 'TESTING' && timeLeft <= 0) {
+                    submitExam(true); // Hết giờ tự nộp
+                }
+                return () => clearInterval(timer);
+            }, [view, timeLeft]);
+
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const s = (seconds % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            // Xử lý nộp bài
+            const submitExam = (isAuto = false) => {
+                if (!isAuto && !confirm("Bạn có chắc chắn muốn nộp bài?")) return;
+                
+                // Thuật toán chấm điểm giả lập (Do admin chưa có tính năng tạo đáp án chuẩn A/B/C/D)
+                // Sinh ngẫu nhiên một số điểm dựa trên số câu đã làm để demo hệ thống.
+                const answeredCount = Object.keys(answers).length;
+                const score = answeredCount === 0 ? 0 : (Math.random() * (10 - 5) + 5).toFixed(1); 
+                const timeSpentStr = formatTime((selectedExam.duration * 60) - timeLeft);
+
+                // Cập nhật vào LocalStorage cho Admin thấy
+                const allExams = JSON.parse(localStorage.getItem('tMath_Exams') || '[]');
+                const updatedExams = allExams.map(e => {
+                    if (e.id === selectedExam.id) {
+                        const newResults = { ...e.results };
+                        newResults[selectedStudent.id] = {
+                            score: score,
+                            timeSpent: timeSpentStr,
+                            submitDate: new Date().toLocaleString('vi-VN'),
+                            violations: 0 // Mock vi phạm
+                        };
+                        return { ...e, results: newResults };
+                    }
+                    return e;
+                });
+                localStorage.setItem('tMath_Exams', JSON.stringify(updatedExams));
+
+                setScoreInfo({ score, timeSpentStr, answeredCount });
+                setView('RESULT');
+            };
+
+            // Tùy chọn A, B, C, D
+            const OPTIONS = ['A', 'B', 'C', 'D'];
+            const questionCount = 40; // Mặc định hiển thị phiếu 40 câu
+
+            // --- RENDER VIEWS ---
+
+            if (view === 'TESTING') {
                 return (
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <button onClick={() => setSelectedClass(null)} className="mb-8 flex items-center gap-2 text-emerald-400 font-bold uppercase text-[10px] tracking-widest"><Icon name="arrow-left" size={14}/> Quay lại chọn lớp</button>
-                        <h2 className="text-3xl font-bold mb-2 uppercase tracking-tighter">Bài ôn tập: Lớp {selectedClass}</h2>
-                        <p className="text-slate-400 text-xs mb-10 uppercase tracking-widest">Giáo viên: Lê Thị Việt Hà</p>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredExams.map(e => (
-                                <div key={e.id} className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] flex flex-col h-full hover:border-emerald-500/50 transition-all">
-                                    <div className="mb-6"><span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase">{e.category === 'kiem_tra' ? 'Kiểm tra' : 'Luyện tập'}</span></div>
-                                    <h3 className="text-xl font-bold mb-8 leading-snug line-clamp-2">{e.title}</h3>
-                                    <div className="mt-auto flex justify-between items-center">
-                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{e.duration} Phút</span>
-                                        <button onClick={() => window.open('quiz.html?id='+e.id, '_blank')} className="bg-emerald-500 text-white px-8 py-3 rounded-2xl font-bold text-[10px] uppercase shadow-lg shadow-emerald-500/20">Vào làm</button>
-                                    </div>
+                    <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
+                        {/* Cột trái: Nội dung đề */}
+                        <div className="flex-1 flex flex-col bg-white border-r shadow-lg relative z-10">
+                            <div className="p-4 border-b border-slate-100 bg-emerald-50 flex justify-between items-center shrink-0">
+                                <h1 className="font-bold text-emerald-800 text-lg">{selectedExam.title}</h1>
+                                <div className="text-sm font-semibold text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                                    <Icon name="user" size={16}/> {selectedStudent.name} ({selectedStudent.className})
                                 </div>
-                            ))}
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scroll p-8 exam-content text-slate-700 text-[15px]">
+                                {selectedExam.answerNote ? (
+                                    <div dangerouslySetInnerHTML={{ __html: selectedExam.answerNote }}></div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
+                                        <Icon name="file-question" size={64} className="mb-4"/>
+                                        <p className="text-lg font-medium">Giáo viên chưa cập nhật nội dung đề lên hệ thống.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Cột phải: Tiến độ / Phiếu trả lời */}
+                        <div className="w-[380px] bg-white flex flex-col shrink-0 shadow-[-4px_0_24px_rgba(0,0,0,0.03)] z-20">
+                            <div className="p-6 border-b border-slate-100 text-center bg-slate-50 shrink-0">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Thời gian còn lại</p>
+                                <div className={`text-4xl font-black tabular-nums tracking-tight ${timeLeft < 300 ? 'text-rose-500 animate-pulse' : 'text-emerald-500'}`}>
+                                    {formatTime(timeLeft)}
+                                </div>
+                                <div className="mt-4 flex items-center justify-center gap-4 text-xs font-semibold text-slate-500">
+                                    <span>Đã làm: <span className="text-emerald-600">{Object.keys(answers).length}/{questionCount}</span></span>
+                                    <span>Chưa làm: <span className="text-rose-500">{questionCount - Object.keys(answers).length}</span></span>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto custom-scroll p-6 bg-slate-50">
+                                <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Icon name="check-square" size={18} className="text-emerald-500"/> Phiếu trả lời</h3>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                                    {Array.from({ length: questionCount }).map((_, i) => (
+                                        <div key={i} className="flex items-center gap-3">
+                                            <span className="w-6 text-right text-sm font-bold text-slate-400 shrink-0">{i + 1}.</span>
+                                            <div className="flex gap-1.5">
+                                                {OPTIONS.map(opt => (
+                                                    <button 
+                                                        key={opt}
+                                                        onClick={() => setAnswers(prev => ({...prev, [i+1]: opt}))}
+                                                        className={`bubble-btn ${answers[i+1] === opt ? 'selected' : ''}`}
+                                                    >
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="p-6 border-t border-slate-200 bg-white shrink-0">
+                                <button onClick={() => submitExam(false)} className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white text-base font-bold rounded-xl shadow-lg shadow-emerald-200 transition-all flex justify-center items-center gap-2">
+                                    <Icon name="send" size={20}/> NỘP BÀI NGAY
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );
             }
 
-            return (
-                <div class="text-center animate-in fade-in duration-700">
-                    <div class="w-20 h-20 bg-emerald-500 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-3"><Icon name="atom" size={44} /></div>
-                    <h1 className="text-4xl font-bold mb-2 uppercase tracking-tighter">Hệ thống ôn tập KHTN</h1>
-                    <p className="text-emerald-400 font-bold mb-16 text-[10px] tracking-[0.3em] uppercase">Giáo viên: Lê Thị Việt Hà</p>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        {classes.length === 0 ? <p className="text-slate-500 col-span-full italic">Chưa có bài ôn tập nào được đăng.</p> : 
-                        classes.map(c => (
-                            <div key={c} onClick={() => setSelectedClass(c)} className="class-card bg-white/5 p-10 rounded-[3rem] flex flex-col items-center justify-center gap-4">
-                                <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-emerald-400"><Icon name="folder" /></div>
-                                <span className="text-2xl font-bold uppercase tracking-tighter">Lớp {c}</span>
+            if (view === 'RESULT') {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="bg-white max-w-md w-full rounded-[2rem] shadow-2xl p-8 text-center animate-in zoom-in duration-300">
+                            <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                                <Icon name="check-circle" size={40}/>
                             </div>
-                        ))}
+                            <h2 className="text-2xl font-black text-slate-800 mb-2">Nộp bài thành công!</h2>
+                            <p className="text-sm font-medium text-slate-500 mb-8">Kết quả của bạn đã được ghi nhận vào hệ thống.</p>
+                            
+                            <div className="bg-slate-50 rounded-2xl p-6 mb-8 space-y-4">
+                                <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                                    <span className="text-slate-500 font-semibold text-sm">Điểm số ước tính</span>
+                                    <span className="text-2xl font-black text-emerald-600">{scoreInfo.score}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                                    <span className="text-slate-500 font-semibold text-sm">Thời gian làm bài</span>
+                                    <span className="text-slate-800 font-bold">{scoreInfo.timeSpentStr}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 font-semibold text-sm">Số câu đã tô</span>
+                                    <span className="text-slate-800 font-bold">{scoreInfo.answeredCount}/{questionCount}</span>
+                                </div>
+                            </div>
+
+                            <button onClick={() => setView('HOME')} className="w-full py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg transition-all">
+                                QUAY LẠI TRANG CHỦ
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'LOGIN') {
+                // Lấy học sinh thuộc các lớp được cấp quyền, hoặc tất cả nếu thầy chưa giới hạn
+                const allowedClasses = selectedExam.allowedClasses || [];
+                const examStudents = students.filter(s => allowedClasses.length === 0 || allowedClasses.includes(s.className));
+                
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4 relative">
+                        <button onClick={() => setView('EXAM_LIST')} className="absolute top-6 left-6 flex items-center gap-2 text-emerald-700 font-bold hover:text-emerald-800 transition-colors bg-white/50 px-4 py-2 rounded-xl backdrop-blur-sm">
+                            <Icon name="arrow-left"/> Quay lại
+                        </button>
+
+                        <div className="bg-white max-w-md w-full rounded-[2rem] shadow-2xl p-8 animate-in slide-in-from-bottom-8 duration-300">
+                            <h2 className="text-xl font-bold text-slate-800 mb-2">Đăng nhập làm bài</h2>
+                            <p className="text-sm font-semibold text-emerald-600 mb-6 pb-4 border-b border-slate-100">{selectedExam.title}</p>
+                            
+                            <div className="space-y-4 mb-8">
+                                <label className="block text-sm font-bold text-slate-600">Chọn tên của bạn trong danh sách:</label>
+                                {examStudents.length === 0 ? (
+                                    <div className="p-4 bg-rose-50 text-rose-600 rounded-xl text-sm font-semibold border border-rose-100 text-center">
+                                        Không tìm thấy học sinh nào được phép làm bài thi này.
+                                    </div>
+                                ) : (
+                                    <select onChange={(e) => startExam(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 outline-none text-slate-700 font-medium transition-all bg-slate-50 hover:bg-white cursor-pointer appearance-none">
+                                        <option value="">-- Bấm vào để chọn tên --</option>
+                                        {examStudents.sort((a,b)=>a.className.localeCompare(b.className) || a.name.localeCompare(b.name)).map(s => (
+                                            <option key={s.id} value={s.id}>{s.name} - {s.className}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'EXAM_LIST') {
+                // Lọc đề thuộc khối tương ứng (VD: Khối 6 lấy các đề có className chứa "6")
+                // Nếu quy tắc đặt tên lớp của thầy là 6A1, 6A2...
+                const gradeNum = selectedGrade.replace(/[^0-9]/g, ''); 
+                const gradeExams = exams.filter(e => !e.isArchived && (e.className === selectedGrade || e.className.includes(gradeNum) || e.allowedClasses?.some(c => c.includes(gradeNum))));
+
+                return (
+                    <div className="min-h-screen p-8 max-w-6xl mx-auto">
+                        <header className="flex items-center justify-between mb-8">
+                            <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-emerald-700 font-bold hover:text-emerald-800 transition-colors bg-white px-5 py-2.5 rounded-xl shadow-sm border border-emerald-100">
+                                <Icon name="arrow-left"/> Về trang chủ
+                            </button>
+                            <h2 className="text-2xl font-black text-slate-800 uppercase tracking-wide">DANH SÁCH ĐỀ {selectedGrade}</h2>
+                        </header>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {gradeExams.length === 0 ? (
+                                <div className="col-span-full py-20 flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-slate-100 text-slate-400">
+                                    <Icon name="folder-open" size={64} className="mb-4 opacity-50"/>
+                                    <p className="text-lg font-medium">Giáo viên chưa đăng bài tập nào cho khối này.</p>
+                                </div>
+                            ) : (
+                                gradeExams.map(exam => {
+                                    const status = getExamStatus(exam.openTime, exam.closeTime);
+                                    return (
+                                        <div key={exam.id} onClick={() => handleExamClick(exam)} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 hover:border-emerald-200 transition-all cursor-pointer group">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">{CATEGORIES[exam.category]}</span>
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold ${status.class}`}>
+                                                    {status.label}
+                                                </span>
+                                            </div>
+                                            <h3 className="text-lg font-bold text-slate-800 mb-4 line-clamp-2 group-hover:text-emerald-600 transition-colors">{exam.title}</h3>
+                                            
+                                            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-50">
+                                                <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+                                                    <Icon name="clock" size={16} className="text-emerald-400"/> {exam.duration} phút
+                                                </div>
+                                                <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+                                                    <Icon name="users" size={16} className="text-indigo-400"/> {exam.allowedClasses?.length > 0 ? exam.allowedClasses.join(', ') : exam.className}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            )}
+                        </div>
+                        <div className="text-center mt-12 text-sm text-slate-400 font-medium">
+                            &copy; Copyright Pham Minh Tuan
+                        </div>
+                    </div>
+                );
+            }
+
+            // MẶC ĐỊNH LÀ GIAO DIỆN CHÍNH (TRANG CHỦ GIỐNG ẢNH)
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-[0_8px_40px_rgba(34,197,94,0.1)] p-8 md:p-12 animate-in zoom-in-95 duration-500">
+                        
+                        {/* Header giống hình */}
+                        <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-12 text-center md:text-left">
+                            <div className="w-20 h-20 bg-[#22c55e] rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-green-200">
+                                <Icon name="atom" size={48}/>
+                            </div>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[#1e293b] leading-tight">
+                                    HỆ THỐNG TRẮC NGHIỆM <br/>
+                                    <span className="text-[#16a34a]">KHOA HỌC TỰ NHIÊN</span>
+                                </h1>
+                                <p className="text-[#64748b] text-sm md:text-base font-semibold mt-2 uppercase tracking-[0.1em]">
+                                    GIÁO VIÊN: CÔ LÊ THỊ VIỆT HÀ - THCS NGUYỄN AN KHƯƠNG
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="w-full h-px bg-slate-100 mb-10"></div>
+
+                        {/* Chọn khối */}
+                        <div className="text-center mb-8">
+                            <h2 className="text-[#475569] text-base md:text-lg font-bold uppercase tracking-widest">
+                                CHỌN KHỐI LỚP ĐỂ BẮT ĐẦU
+                            </h2>
+                        </div>
+
+                        {/* 4 Nút Lớp giống hình */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                            {['LỚP 6', 'LỚP 7', 'LỚP 8', 'LỚP 9'].map((grade) => (
+                                <button 
+                                    key={grade} 
+                                    onClick={() => handleGradeSelect(grade)}
+                                    className="flex flex-col items-center justify-center p-8 bg-white border-2 border-green-50 rounded-[1.5rem] hover:border-[#22c55e] hover:shadow-[0_8px_30px_rgba(34,197,94,0.15)] hover:-translate-y-1 transition-all group"
+                                >
+                                    <div className="w-12 h-12 bg-[#dcfce7] rounded-full flex items-center justify-center text-[#16a34a] mb-4 group-hover:scale-110 transition-transform">
+                                        <Icon name="book-open" size={24}/>
+                                    </div>
+                                    <span className="text-xl font-black text-[#166534]">{grade}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div className="text-center mt-8 text-sm text-[#94a3b8] font-medium">
+                        &copy; Copyright Lê Thị Việt Hà
                     </div>
                 </div>
             );
         };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
