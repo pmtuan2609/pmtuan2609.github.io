@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản trị KHTN | Lê Thị Việt Hà</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -15,6 +16,7 @@
         b, strong, .font-semibold { font-weight: 600; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
+        .active-tab { background-color: #6366f1 !important; color: white !important; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
     </style>
 </head>
 <body>
@@ -30,7 +32,7 @@
             return <span ref={ref} className={className}><i data-lucide={name} style={{width: size, height: size}}></i></span>;
         };
 
-        // --- CỬA SỔ (MODAL) HỌC SINH ---
+        // --- CỬA SỔ (MODAL) HỌC SINH (GIỮ NGUYÊN) ---
         const StudentModal = ({ onClose }) => {
             const [students, setStudents] = useState(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'));
             const [input, setInput] = useState({ firstName: '', lastName: '', className: '' });
@@ -76,7 +78,7 @@
                                     <input type="text" placeholder="Lớp (6A1, 6A3...)" value={input.className} onChange={e=>setInput({...input, className: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
                                     <input type="text" placeholder="Họ lót" value={input.lastName} onChange={e=>setInput({...input, lastName: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
                                     <input type="text" placeholder="Tên" value={input.firstName} onChange={e=>setInput({...input, firstName: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
-                                    <button onClick={handleManual} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-normal text-xs uppercase tracking-widest shadow-lg shadow-indigo-100">Thêm vào lớp</button>
+                                    <button onClick={handleManual} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-normal text-xs uppercase tracking-widest">Thêm vào lớp</button>
                                 </div>
                                 <div className="pt-6 border-t border-slate-100">
                                     <h3 className="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest mb-4">Nhập từ Excel</h3>
@@ -93,7 +95,7 @@
                                     <button onClick={()=>{if(confirm('Xóa hết?')) saveSt([]);}} className="text-[9px] font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded">XÓA TẤT CẢ</button>
                                 </div>
                                 {students.sort((a,b)=>a.className.localeCompare(b.className)).map((s, idx) => (
-                                    <div key={s.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-2xl hover:border-indigo-200 transition-all">
+                                    <div key={s.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-indigo-200 transition-all">
                                         <div className="flex items-center gap-4">
                                             <span className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-[10px] font-semibold text-indigo-500">{s.className}</span>
                                             <span className="text-sm text-slate-700">{s.name}</span>
@@ -112,7 +114,15 @@
         const App = () => {
             const [exams, setExams] = useState(() => JSON.parse(localStorage.getItem('tMath_Exams') || '[]'));
             const [showStudent, setShowStudent] = useState(false);
+            const [activeClass, setActiveClass] = useState(""); // Phục hồi: Cột lớp đang chọn
             const [form, setForm] = useState({ title: '', duration: 45, attempts: 1, customClass: '', category: 'luyen_tap' });
+
+            // Phục hồi: Tự động lấy danh sách lớp duy nhất từ kho đề
+            const uniqueClasses = useMemo(() => {
+                const classes = [...new Set(exams.map(e => e.className))].sort();
+                if (classes.length > 0 && !activeClass) setActiveClass(classes[0]);
+                return classes;
+            }, [exams]);
 
             const saveExam = () => {
                 if(!form.title || !form.customClass) return alert("Điền đủ Tiêu đề và Lớp!");
@@ -123,6 +133,24 @@
                 alert("Đăng bài thành công!");
             };
 
+            const delExam = (id) => {
+                if(confirm('Xóa bài này?')) {
+                    const updated = exams.filter(e => e.id !== id);
+                    setExams(updated);
+                    localStorage.setItem('tMath_Exams', JSON.stringify(updated));
+                }
+            };
+
+            // Phục hồi: Lọc đề theo Lớp và Category
+            const filteredColumns = useMemo(() => {
+                const list = exams.filter(e => e.className === activeClass);
+                return {
+                    luyen_tap: list.filter(e => e.category === 'luyen_tap'),
+                    bai_tap: list.filter(e => e.category === 'bai_tap'),
+                    kiem_tra: list.filter(e => e.category === 'kiem_tra')
+                };
+            }, [exams, activeClass]);
+
             return (
                 <div className="flex h-screen overflow-hidden text-slate-800 font-light">
                     <aside className="w-80 bg-white border-r shadow-xl z-20 flex flex-col p-6 shrink-0">
@@ -131,7 +159,6 @@
                             <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-2">Lê Thị Việt Hà</p>
                         </div>
                         <div className="grid grid-cols-2 gap-2 mb-8">
-                            {/* Nút Học Sinh: Bây giờ chỉ set state, không nhảy link */}
                             <button onClick={() => setShowStudent(true)} className="flex flex-col items-center p-4 border border-slate-100 rounded-[1.5rem] text-[9px] uppercase hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
                                 <Icon name="users" size={20} className="mb-1"/> Học sinh
                             </button>
@@ -141,47 +168,89 @@
                         </div>
                         <div className="flex-1 space-y-4 bg-slate-50/50 p-5 rounded-[2rem] border border-slate-100 overflow-y-auto custom-scroll text-left">
                             <h3 className="text-[10px] font-semibold text-indigo-500 uppercase tracking-widest">Đăng bài mới</h3>
-                            <input type="text" placeholder="Tiêu đề..." value={form.title} onChange={e=>setForm({...form, title:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
-                            <input type="text" placeholder="Lớp (6A1, 7TH2...)" value={form.customClass} onChange={e=>setForm({...form, customClass:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
+                            <input type="text" placeholder="Tiêu đề..." value={form.title} onChange={e=>setForm({...form, title:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none shadow-sm" />
+                            <input type="text" placeholder="Lớp (6A1, 6A3...)" value={form.customClass} onChange={e=>setForm({...form, customClass:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none shadow-sm" />
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Thời gian</label><input type="number" value={form.duration} onChange={e=>setForm({...form, duration:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center" /></div>
-                                <div><label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Lượt làm</label><input type="number" value={form.attempts} onChange={e=>setForm({...form, attempts:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center" /></div>
+                                <div><label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Thời gian</label><input type="number" value={form.duration} onChange={e=>setForm({...form, duration:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center shadow-sm" /></div>
+                                <div><label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Lượt làm</label><input type="number" value={form.attempts} onChange={e=>setForm({...form, attempts:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center shadow-sm" /></div>
                             </div>
-                            <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-xs">
+                            <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-xs shadow-sm">
                                 {Object.entries(CATEGORIES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
-                            <button onClick={saveExam} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-normal uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 mt-2">Đăng đề lên hệ thống</button>
+                            <button onClick={saveExam} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-normal uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 mt-2">Đăng đề ngay</button>
                         </div>
                         <div className="mt-auto text-center pt-4 border-t border-slate-100">
                             <p className="text-[9px] font-semibold text-slate-300 uppercase tracking-widest">Bản quyền Lê Thị Việt Hà</p>
                         </div>
                     </aside>
-                    <main className="flex-1 overflow-y-auto p-10 custom-scroll bg-slate-50">
-                        <div className="max-w-6xl mx-auto space-y-12">
+
+                    <main className="flex-1 flex flex-col overflow-hidden bg-slate-50">
+                        {/* PHỤC HỒI: THANH CHỌN LỚP */}
+                        <header className="bg-white p-4 border-b flex items-center justify-between shadow-sm shrink-0">
+                            <div className="flex gap-2 overflow-x-auto custom-scroll py-1">
+                                {uniqueClasses.length === 0 ? (
+                                    <span className="text-[10px] font-bold text-slate-300 uppercase px-4 italic">Chưa có lớp nào được đăng</span>
+                                ) : (
+                                    uniqueClasses.map(cls => (
+                                        <button 
+                                            key={cls} 
+                                            onClick={() => setActiveClass(cls)}
+                                            className={`px-8 py-2 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${activeClass === cls ? 'active-tab' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                                        >
+                                            Lớp {cls}
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                            <div className="px-4 border-l ml-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                <Icon name="layers" size={14} className="inline mr-1"/> {exams.length} Bài
+                            </div>
+                        </header>
+
+                        {/* PHỤC HỒI: HIỂN THỊ 3 CỘT THEO LỚP ĐANG CHỌN */}
+                        <div className="flex-1 flex p-8 gap-6 overflow-x-auto custom-scroll">
                             {Object.entries(CATEGORIES).map(([key, label]) => (
-                                <section key={key} className="text-left">
-                                    <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-indigo-400"></div> {label}</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {exams.filter(e => e.category === key).map(e => (
-                                            <div key={e.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <span className="px-2 py-1 bg-indigo-50 text-indigo-500 rounded text-[9px] font-semibold">{e.className}</span>
-                                                    <button onClick={()=>{if(confirm('Xóa?')){ const u = exams.filter(i=>i.id!==e.id); setExams(u); localStorage.setItem('tMath_Exams', JSON.stringify(u)); }}} className="text-slate-200 hover:text-rose-400 transition-colors"><Icon name="trash-2" size={14}/></button>
+                                <div key={key} className="flex-1 min-w-[340px] flex flex-col bg-slate-200/30 rounded-[2.5rem] p-6 border border-slate-200/50">
+                                    <h3 className="font-black text-slate-800 uppercase tracking-[0.2em] text-[11px] mb-6 flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div> {label}
+                                    </h3>
+                                    <div className="flex-1 overflow-y-auto space-y-3 custom-scroll pr-1 text-left">
+                                        {filteredColumns[key].map(e => (
+                                            <div key={e.id} className="bg-white p-5 rounded-[1.8rem] border border-transparent hover:border-indigo-200 transition-all shadow-sm group">
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded text-[9px] font-bold tracking-widest">{e.className}</span>
+                                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"><Icon name="clock" size={14}/></button>
+                                                        <button className="p-1.5 bg-slate-50 text-slate-600 rounded-lg"><Icon name="check-square" size={14}/></button>
+                                                        <button onClick={() => delExam(e.id)} className="p-1.5 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-colors">
+                                                            <Icon name="trash-2" size={14}/>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <h4 className="font-normal text-slate-700 text-sm leading-snug line-clamp-2">{e.title}</h4>
-                                                <div className="flex justify-between text-[9px] text-slate-300 uppercase mt-4 pt-4 border-t border-slate-50"><span>{e.duration}p • {e.attempts} lượt</span><span>{e.createdAt}</span></div>
+                                                <div className="flex justify-between text-[9px] text-slate-300 font-bold uppercase mt-4 pt-4 border-t border-slate-50">
+                                                    <span>{e.duration}p • {e.attempts} Lượt</span>
+                                                    <span>{e.createdAt}</span>
+                                                </div>
                                             </div>
                                         ))}
+                                        {filteredColumns[key].length === 0 && (
+                                            <div className="h-full flex flex-col items-center justify-center text-slate-300 italic text-[10px] py-10 opacity-50">
+                                                <Icon name="folder-open" size={24} className="mb-2" />
+                                                Trống
+                                            </div>
+                                        )}
                                     </div>
-                                </section>
+                                </div>
                             ))}
                         </div>
                     </main>
-                    {/* MODAL HỌC SINH HIỆN TẠI ĐÂY */}
+
                     {showStudent && <StudentModal onClose={() => setShowStudent(false)} />}
                 </div>
             );
         };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
