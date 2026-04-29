@@ -37,10 +37,24 @@
             return <span ref={ref} className={className}><i data-lucide={name} style={{width: size, height: size}}></i></span>;
         };
 
-        // --- CỬA SỔ QUẢN LÝ HỌC SINH TỔNG ---
+        // --- HÀM TÍNH TRẠNG THÁI ĐỀ ---
+        const getExamStatus = (openTime, closeTime) => {
+            if (!openTime && !closeTime) return { label: 'Chưa cài đặt', class: 'bg-slate-100 text-slate-500 border-slate-200' };
+            const now = new Date().getTime();
+            const start = openTime ? new Date(openTime).getTime() : 0;
+            const end = closeTime ? new Date(closeTime).getTime() : Infinity;
+
+            if (now < start) return { label: 'Chờ mở', class: 'bg-yellow-50 text-yellow-600 border-yellow-200' };
+            if (now >= start && now <= end) return { label: 'Đang mở', class: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
+            if (now > end) return { label: 'Đã đóng', class: 'bg-rose-50 text-rose-600 border-rose-200' };
+            return { label: 'Không xác định', class: 'bg-slate-100 text-slate-500 border-slate-200' };
+        };
+
+        // --- CỬA SỔ QUẢN LÝ HỌC SINH (GROUP THEO LỚP) ---
         const StudentModal = ({ onClose }) => {
             const [students, setStudents] = useState(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'));
-            const [input, setInput] = useState({ firstName: '', lastName: '', className: 'Lớp 6' });
+            const [input, setInput] = useState({ firstName: '', lastName: '', className: '' });
+            const [expandedClass, setExpandedClass] = useState(null);
 
             const saveSt = (data) => { 
                 setStudents(data); 
@@ -48,10 +62,11 @@
             };
 
             const handleManual = () => {
-                if(!input.firstName || !input.lastName) return alert("Vui lòng điền đủ Họ và Tên!");
-                const newSt = { id: Date.now(), name: `${input.lastName} ${input.firstName}`.trim(), className: input.className };
+                if(!input.firstName || !input.lastName || !input.className) return alert("Vui lòng điền đủ Lớp, Họ và Tên!");
+                const newSt = { id: Date.now(), name: `${input.lastName} ${input.firstName}`.trim(), className: input.className.trim() };
                 saveSt([...students, newSt]);
                 setInput({ ...input, firstName: '', lastName: '' });
+                setExpandedClass(newSt.className); // Auto expand lớp vừa thêm
             };
 
             const handleExcel = (e) => {
@@ -69,6 +84,14 @@
                 reader.readAsBinaryString(file);
             };
 
+            const groupedStudents = useMemo(() => {
+                return students.reduce((acc, s) => {
+                    if (!acc[s.className]) acc[s.className] = [];
+                    acc[s.className].push(s);
+                    return acc;
+                }, {});
+            }, [students]);
+
             return (
                 <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-4xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-200">
@@ -81,10 +104,8 @@
                                 <div className="space-y-3">
                                     <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4"><Icon name="user-plus" size={16} className="text-indigo-600"/> Thêm Thủ Công</h3>
                                     <div>
-                                        <label className="text-xs font-semibold text-slate-500 mb-1 block">Khối/Lớp</label>
-                                        <select value={input.className} onChange={e=>setInput({...input, className: e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
-                                            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-                                        </select>
+                                        <label className="text-xs font-semibold text-slate-500 mb-1 block">Lớp muốn tạo (VD: 6A1, Lớp 7...)</label>
+                                        <input type="text" placeholder="Nhập tên lớp..." value={input.className} onChange={e=>setInput({...input, className: e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
                                     </div>
                                     <div>
                                         <label className="text-xs font-semibold text-slate-500 mb-1 block">Họ lót</label>
@@ -106,21 +127,41 @@
                             </div>
                             <div className="flex-1 p-6 overflow-y-auto custom-scroll bg-slate-50">
                                 <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <h4 className="font-bold text-slate-700">Tổng số: <span className="text-indigo-600">{students.length}</span></h4>
+                                    <h4 className="font-bold text-slate-700">Tổng số: <span className="text-indigo-600">{students.length}</span> HS</h4>
                                     <button onClick={()=>{if(confirm('Xóa toàn bộ danh sách?')) saveSt([]);}} className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
                                         <Icon name="trash-2" size={14}/> XÓA TẤT CẢ
                                     </button>
                                 </div>
-                                <div className="space-y-2">
-                                    {students.sort((a,b)=>a.className.localeCompare(b.className)).map((s) => (
-                                        <div key={s.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
-                                            <div className="flex items-center gap-4">
-                                                <span className="px-3 py-1 bg-indigo-50 rounded-lg text-xs font-bold text-indigo-700">{s.className}</span>
-                                                <span className="font-medium text-sm text-slate-700">{s.name}</span>
+                                <div className="space-y-3">
+                                    {Object.keys(groupedStudents).sort().map(className => (
+                                        <div key={className} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition-all">
+                                            <div 
+                                                className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50"
+                                                onClick={() => setExpandedClass(expandedClass === className ? null : className)}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Icon name={expandedClass === className ? "folder-open" : "folder"} className="text-indigo-500" size={20}/>
+                                                    <span className="font-bold text-slate-800">{className}</span>
+                                                    <span className="text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{groupedStudents[className].length} HS</span>
+                                                </div>
+                                                <Icon name={expandedClass === className ? "chevron-up" : "chevron-down"} className="text-slate-400" size={18}/>
                                             </div>
-                                            <button onClick={()=>saveSt(students.filter(i=>i.id!==s.id))} className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"><Icon name="x" size={16}/></button>
+                                            
+                                            {expandedClass === className && (
+                                                <div className="border-t border-slate-100 bg-slate-50/50 p-2 space-y-1">
+                                                    {groupedStudents[className].sort((a,b)=>a.name.localeCompare(b.name)).map(s => (
+                                                        <div key={s.id} className="flex items-center justify-between p-2.5 bg-white border border-slate-100 rounded-lg hover:border-indigo-200 transition-all ml-4">
+                                                            <span className="font-medium text-sm text-slate-700">{s.name}</span>
+                                                            <button onClick={(e)=>{e.stopPropagation(); saveSt(students.filter(i=>i.id!==s.id))}} className="p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-600 rounded transition-colors"><Icon name="x" size={16}/></button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
+                                    {Object.keys(groupedStudents).length === 0 && (
+                                        <div className="text-center text-slate-400 py-10 text-sm">Chưa có lớp nào được tạo.</div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -129,42 +170,148 @@
             );
         };
 
-        // --- CỬA SỔ CÀI ĐẶT THỜI GIAN ---
+        // --- CỬA SỔ CÀI ĐẶT THỜI GIAN (CÓ GIỜ MỞ/ĐÓNG) ---
         const TimeModal = ({ exam, onClose, onSave }) => {
             const [openTime, setOpenTime] = useState(exam.openTime || '');
+            const [closeTime, setCloseTime] = useState(exam.closeTime || '');
+            
             return (
                 <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="clock" className="text-indigo-600"/> Cài đặt giờ mở bài</h3>
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="clock" className="text-indigo-600"/> Cài đặt thời gian</h3>
                             <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><Icon name="x"/></button>
                         </div>
                         <p className="text-sm text-slate-500 mb-4 line-clamp-2">{exam.title}</p>
-                        <input type="datetime-local" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg text-sm mb-6 outline-none focus:ring-2 focus:ring-indigo-500" />
+                        
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Giờ mở đề tự động</label>
+                                <input type="datetime-local" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Giờ đóng đề tự động</label>
+                                <input type="datetime-local" value={closeTime} onChange={(e) => setCloseTime(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+                        </div>
+
                         <div className="flex gap-3">
-                            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-semibold rounded-lg text-sm">Hủy</button>
-                            <button onClick={() => onSave(exam.id, openTime)} className="flex-1 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg text-sm shadow-md">Lưu cài đặt</button>
+                            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-semibold rounded-lg text-sm hover:bg-slate-200">Hủy</button>
+                            <button onClick={() => onSave(exam.id, openTime, closeTime)} className="flex-1 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg text-sm shadow-md hover:bg-indigo-700">Lưu cài đặt</button>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- CỬA SỔ GIAO BÀI CHO HỌC SINH ---
+        // --- CỬA SỔ CHỈNH SỬA ĐÁP ÁN/FILE ---
+        const EditFileModal = ({ exam, onClose, onSave }) => {
+            const [answerNote, setAnswerNote] = useState(exam.answerNote || '');
+            
+            return (
+                <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="edit-3" className="text-indigo-600"/> Cập nhật File / Đáp án</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><Icon name="x"/></button>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700 mb-2">Đề: {exam.title}</p>
+                        
+                        <div className="mb-4">
+                            <label className="block text-xs font-semibold text-slate-500 mb-2">Ghi chú đáp án / Cập nhật nội dung:</label>
+                            <textarea 
+                                rows="6" 
+                                value={answerNote} 
+                                onChange={(e) => setAnswerNote(e.target.value)}
+                                placeholder="Nhập đáp án hoặc ghi chú cập nhật tại đây..."
+                                className="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 custom-scroll"
+                            ></textarea>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-semibold rounded-lg text-sm hover:bg-slate-200">Hủy</button>
+                            <button onClick={() => onSave(exam.id, answerNote)} className="flex-1 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg text-sm shadow-md hover:bg-indigo-700 flex justify-center items-center gap-2">
+                                <Icon name="save" size={16}/> Lưu thay đổi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- CỬA SỔ KẾT QUẢ HỌC SINH LÀM BÀI ---
+        const ResultsModal = ({ exam, onClose }) => {
+            const allStudents = useMemo(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'), []);
+            // Lấy danh sách HS theo lớp của đề, hoặc chỉ hiển thị những HS đã được giao bài
+            const assignedStudents = allStudents.filter(s => s.className === exam.className && (exam.allowedStudents?.length === 0 || exam.allowedStudents?.includes(s.id)));
+            
+            // Dữ liệu mock (tạo ngẫu nhiên một vài HS đã làm để demo hiển thị)
+            const mockResults = exam.results || {}; 
+
+            return (
+                <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-4xl h-[80vh] rounded-2xl shadow-2xl flex flex-col">
+                        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50 rounded-t-2xl">
+                            <div>
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="bar-chart-2" className="text-indigo-600"/> Kết quả làm bài</h3>
+                                <p className="text-sm font-semibold text-indigo-700 mt-1">{exam.title} ({exam.className})</p>
+                            </div>
+                            <button onClick={onClose} className="p-2 bg-white rounded-lg shadow-sm text-slate-400 hover:text-slate-600 transition-colors"><Icon name="x"/></button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-auto bg-slate-50 p-6 custom-scroll text-left">
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-slate-500 bg-slate-100 uppercase border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-4 font-bold">Họ và Tên</th>
+                                            <th className="px-6 py-4 font-bold text-center">Trạng thái</th>
+                                            <th className="px-6 py-4 font-bold text-center">Điểm số</th>
+                                            <th className="px-6 py-4 font-bold text-center">Thời gian làm</th>
+                                            <th className="px-6 py-4 font-bold text-center">Ngày Nộp</th>
+                                            <th className="px-6 py-4 font-bold text-center">Vi phạm</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {assignedStudents.length === 0 ? (
+                                            <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-400">Chưa có dữ liệu học sinh thuộc lớp này.</td></tr>
+                                        ) : (
+                                            assignedStudents.sort((a,b)=>a.name.localeCompare(b.name)).map(s => {
+                                                const res = mockResults[s.id]; // Tìm kết quả của HS
+                                                return (
+                                                    <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
+                                                        <td className="px-6 py-4 font-medium text-slate-800">{s.name}</td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            {res ? <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">Đã nộp</span> 
+                                                                 : <span className="bg-slate-100 text-slate-400 px-2 py-1 rounded text-xs font-bold">Chưa làm</span>}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-center font-bold text-indigo-600">{res ? res.score : '-'}</td>
+                                                        <td className="px-6 py-4 text-center text-slate-500">{res ? res.timeSpent : '-'}</td>
+                                                        <td className="px-6 py-4 text-center text-slate-500">{res ? res.submitDate : '-'}</td>
+                                                        <td className="px-6 py-4 text-center">
+                                                            {res ? (res.violations > 0 ? <span className="text-rose-500 font-bold">{res.violations} lỗi</span> : <span className="text-emerald-500">0</span>) : '-'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- CỬA SỔ GIAO BÀI (GIỮ NGUYÊN TỪ PHIÊN BẢN TRƯỚC) ---
         const AssignModal = ({ exam, onClose, onSave }) => {
             const allStudents = useMemo(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'), []);
-            // Lọc học sinh theo khối của đề thi
             const classStudents = allStudents.filter(s => s.className === exam.className);
             const [selectedIds, setSelectedIds] = useState(exam.allowedStudents || []);
 
-            const toggleStudent = (id) => {
-                setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-            };
-
-            const selectAll = () => {
-                if (selectedIds.length === classStudents.length) setSelectedIds([]);
-                else setSelectedIds(classStudents.map(s => s.id));
-            };
+            const toggleStudent = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+            const selectAll = () => setSelectedIds(selectedIds.length === classStudents.length ? [] : classStudents.map(s => s.id));
 
             return (
                 <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -180,9 +327,9 @@
                             <span className="text-sm font-semibold text-slate-600">Đã chọn: {selectedIds.length}/{classStudents.length}</span>
                             <button onClick={selectAll} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg">Chọn tất cả</button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-2 custom-scroll">
+                        <div className="flex-1 overflow-y-auto p-2 custom-scroll text-left">
                             {classStudents.length === 0 ? (
-                                <div className="text-center text-slate-400 text-sm mt-10">Chưa có học sinh nào thuộc {exam.className}</div>
+                                <div className="text-center text-slate-400 text-sm mt-10">Chưa có HS thuộc lớp {exam.className}</div>
                             ) : (
                                 classStudents.sort((a,b)=>a.name.localeCompare(b.name)).map(s => (
                                     <label key={s.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border-b border-slate-50">
@@ -200,7 +347,7 @@
             );
         };
 
-        // --- CỬA SỔ LƯU TRỮ ĐỀ (THÙNG RÁC) ---
+        // --- CỬA SỔ LƯU TRỮ (GIỮ NGUYÊN) ---
         const ArchiveModal = ({ exams, onClose, onRestore, onHardDelete }) => {
             const archivedExams = exams.filter(e => e.isArchived);
             return (
@@ -218,7 +365,7 @@
                                 </div>
                             ) : (
                                 archivedExams.map(e => (
-                                    <div key={e.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <div key={e.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-left">
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">{e.className}</span>
@@ -249,7 +396,7 @@
             const [showStudent, setShowStudent] = useState(false);
             const [showArchive, setShowArchive] = useState(false);
             
-            // State quản lý các popup cài đặt của từng đề
+            // Cập nhật State để quản lý thêm các modal mới: editFile, results
             const [activeModal, setActiveModal] = useState({ type: null, examId: null });
 
             const [activeClass, setActiveClass] = useState("");
@@ -258,13 +405,18 @@
                 duration: 45, attempts: 1, violations: 3 
             });
 
+            // Re-render mỗi phút để cập nhật huy hiệu thời gian
+            const [currentTime, setCurrentTime] = useState(Date.now());
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
+                return () => clearInterval(timer);
+            }, []);
+
             const activeExams = useMemo(() => exams.filter(e => !e.isArchived), [exams]);
 
             const uniqueClasses = useMemo(() => {
                 const classes = [...new Set(activeExams.map(e => e.className))].sort();
-                if (classes.length > 0 && !activeClass && classes.includes(activeClass) === false) {
-                    setActiveClass(classes[0]);
-                }
+                if (classes.length > 0 && !activeClass && classes.includes(activeClass) === false) setActiveClass(classes[0]);
                 return classes;
             }, [activeExams, activeClass]);
 
@@ -278,45 +430,37 @@
                 const newExam = { 
                     ...form, id: Date.now(), className: form.grade, 
                     createdAt: new Date().toLocaleDateString('vi-VN'),
-                    isArchived: false, allowedStudents: [], wordFile: null, openTime: ''
+                    isArchived: false, allowedStudents: [], wordFile: null, 
+                    openTime: '', closeTime: '', answerNote: '', results: {} 
                 };
                 updateExams([...exams, newExam]);
                 setForm({...form, title: ''}); 
                 setActiveClass(form.grade);
             };
 
-            // Lưu trữ thay vì xóa
-            const archiveExam = (id) => {
-                updateExams(exams.map(e => e.id === id ? { ...e, isArchived: true } : e));
-            };
-
-            // Khôi phục từ kho lưu trữ
-            const restoreExam = (id) => {
-                updateExams(exams.map(e => e.id === id ? { ...e, isArchived: false } : e));
-            };
-
-            // Xóa vĩnh viễn
+            const archiveExam = (id) => updateExams(exams.map(e => e.id === id ? { ...e, isArchived: true } : e));
+            const restoreExam = (id) => updateExams(exams.map(e => e.id === id ? { ...e, isArchived: false } : e));
             const hardDeleteExam = (id) => {
-                if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn đề này?')) {
-                    updateExams(exams.filter(e => e.id !== id));
-                }
+                if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn đề này?')) updateExams(exams.filter(e => e.id !== id));
             };
 
-            // Xử lý upload file Word giả lập
             const handleWordUpload = (id, e) => {
                 const file = e.target.files[0];
                 if(file) updateExams(exams.map(ex => ex.id === id ? { ...ex, wordFile: file.name } : ex));
             };
 
-            // Xử lý lưu thời gian
-            const saveTime = (id, time) => {
-                updateExams(exams.map(e => e.id === id ? { ...e, openTime: time } : e));
+            const saveTime = (id, openTime, closeTime) => {
+                updateExams(exams.map(e => e.id === id ? { ...e, openTime, closeTime } : e));
                 setActiveModal({ type: null, examId: null });
             };
 
-            // Xử lý lưu học sinh
             const saveStudents = (id, students) => {
                 updateExams(exams.map(e => e.id === id ? { ...e, allowedStudents: students } : e));
+                setActiveModal({ type: null, examId: null });
+            };
+
+            const saveAnswerNote = (id, note) => {
+                updateExams(exams.map(e => e.id === id ? { ...e, answerNote: note } : e));
                 setActiveModal({ type: null, examId: null });
             };
 
@@ -366,10 +510,8 @@
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-500 mb-1">Khối</label>
-                                        <select value={form.grade} onChange={e=>setForm({...form, grade:e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm outline-none bg-white">
-                                            {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-                                        </select>
+                                        <label className="block text-xs font-semibold text-slate-500 mb-1">Khối / Lớp</label>
+                                        <input type="text" placeholder="VD: Lớp 6" value={form.grade} onChange={e=>setForm({...form, grade:e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm outline-none bg-white"/>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 mb-1">Loại bài</label>
@@ -420,7 +562,7 @@
                                 )}
                             </div>
                             <div className="px-4 border-l border-slate-200 ml-4 text-sm font-bold text-slate-500 whitespace-nowrap flex items-center gap-2">
-                                <Icon name="layers" size={18} className="text-indigo-400"/> {activeExams.length} Bài hoạt động
+                                <Icon name="layers" size={18} className="text-indigo-400"/> {activeExams.length} Bài
                             </div>
                         </header>
 
@@ -435,52 +577,67 @@
                                     </div>
                                     
                                     <div className="flex-1 overflow-y-auto space-y-3 custom-scroll pr-1 text-left">
-                                        {activeClass && filteredColumns[key].map(e => (
-                                            <div key={e.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-bold">{e.className}</span>
-                                                    {/* Các thẻ trạng thái nhỏ trên cùng */}
-                                                    <div className="flex gap-1">
-                                                        {e.wordFile && <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex items-center gap-0.5" title={e.wordFile}><Icon name="file-text" size={10}/> Đã tải file</span>}
-                                                        {e.openTime && <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Icon name="clock" size={10}/> Có lịch</span>}
+                                        {activeClass && filteredColumns[key].map(e => {
+                                            const status = getExamStatus(e.openTime, e.closeTime);
+                                            return (
+                                                <div key={e.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col relative">
+                                                    
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className={`px-2 py-1 rounded border text-[10px] font-bold ${status.class}`}>
+                                                            {status.label}
+                                                        </span>
+                                                        <div className="flex gap-1">
+                                                            {e.wordFile && <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Icon name="file-text" size={10}/></span>}
+                                                            {(e.openTime || e.closeTime) && <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Icon name="clock" size={10}/></span>}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                
-                                                <h4 className="font-semibold text-slate-800 text-sm leading-snug mb-3">{e.title}</h4>
-                                                
-                                                <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 mb-3">
-                                                    <div className="flex flex-col items-center justify-center p-1.5 bg-slate-50 rounded-lg">
-                                                        <span className="text-[10px] font-bold text-slate-600">{e.duration}p</span>
+                                                    
+                                                    <h4 className="font-semibold text-slate-800 text-sm leading-snug mb-3 pr-2">{e.title}</h4>
+                                                    
+                                                    <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 mb-3">
+                                                        <div className="flex flex-col items-center justify-center p-1.5 bg-slate-50 rounded-lg">
+                                                            <span className="text-[10px] font-bold text-slate-600">{e.duration}p</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center justify-center p-1.5 bg-slate-50 rounded-lg">
+                                                            <span className="text-[10px] font-bold text-slate-600">{e.attempts} Lần</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-center justify-center p-1.5 bg-rose-50 rounded-lg">
+                                                            <span className="text-[10px] font-bold text-rose-600">{e.violations} Lỗi</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex flex-col items-center justify-center p-1.5 bg-slate-50 rounded-lg">
-                                                        <span className="text-[10px] font-bold text-slate-600">{e.attempts} Lần</span>
-                                                    </div>
-                                                    <div className="flex flex-col items-center justify-center p-1.5 bg-rose-50 rounded-lg">
-                                                        <span className="text-[10px] font-bold text-rose-600">{e.violations} Lỗi</span>
-                                                    </div>
-                                                </div>
 
-                                                {/* Toolbar chức năng */}
-                                                <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-auto">
-                                                    <div className="flex gap-1.5">
-                                                        <label className="icon-btn bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white" title="Tải lên file Word">
-                                                            <Icon name="upload" size={14}/>
-                                                            <input type="file" accept=".doc,.docx" hidden onChange={(evt) => handleWordUpload(e.id, evt)} />
-                                                        </label>
-                                                        <button onClick={() => setActiveModal({type: 'students', examId: e.id})} className="icon-btn bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white relative" title="Giao bài cho lớp">
-                                                            <Icon name="users" size={14}/>
-                                                            {e.allowedStudents?.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-white"></span>}
-                                                        </button>
-                                                        <button onClick={() => setActiveModal({type: 'time', examId: e.id})} className="icon-btn bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white" title="Cài đặt giờ mở bài">
-                                                            <Icon name="calendar-clock" size={14}/>
+                                                    {/* Toolbar chức năng */}
+                                                    <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-auto">
+                                                        <div className="flex gap-1.5">
+                                                            <button onClick={() => setActiveModal({type: 'results', examId: e.id})} className="px-2.5 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-md text-[10px] font-bold transition-colors flex items-center gap-1" title="Xem kết quả">
+                                                                <Icon name="bar-chart-2" size={14}/> Kết quả
+                                                            </button>
+                                                            
+                                                            <label className="icon-btn bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white" title="Tải lên file Word">
+                                                                <Icon name="upload" size={14}/>
+                                                                <input type="file" accept=".doc,.docx" hidden onChange={(evt) => handleWordUpload(e.id, evt)} />
+                                                            </label>
+                                                            
+                                                            <button onClick={() => setActiveModal({type: 'editFile', examId: e.id})} className="icon-btn bg-slate-100 text-slate-600 hover:bg-slate-600 hover:text-white" title="Chỉnh sửa / Cập nhật đáp án">
+                                                                <Icon name="edit-3" size={14}/>
+                                                            </button>
+
+                                                            <button onClick={() => setActiveModal({type: 'students', examId: e.id})} className="icon-btn bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white relative" title="Giao bài cho lớp">
+                                                                <Icon name="users" size={14}/>
+                                                                {e.allowedStudents?.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-white"></span>}
+                                                            </button>
+                                                            
+                                                            <button onClick={() => setActiveModal({type: 'time', examId: e.id})} className="icon-btn bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white" title="Cài đặt giờ mở/đóng">
+                                                                <Icon name="calendar-clock" size={14}/>
+                                                            </button>
+                                                        </div>
+                                                        <button onClick={() => archiveExam(e.id)} className="icon-btn bg-slate-50 text-slate-400 hover:bg-slate-700 hover:text-white" title="Lưu trữ đề">
+                                                            <Icon name="archive-x" size={14}/>
                                                         </button>
                                                     </div>
-                                                    <button onClick={() => archiveExam(e.id)} className="icon-btn bg-slate-100 text-slate-400 hover:bg-slate-700 hover:text-white" title="Lưu trữ đề (Xóa)">
-                                                        <Icon name="archive-x" size={14}/>
-                                                    </button>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                         {(!activeClass || filteredColumns[key].length === 0) && (
                                             <div className="h-32 flex flex-col items-center justify-center text-slate-400 text-sm bg-white/50 rounded-xl border border-dashed border-slate-300">
                                                 <Icon name="inbox" size={28} className="mb-2 text-slate-300" />
@@ -498,6 +655,8 @@
                     {showArchive && <ArchiveModal exams={exams} onClose={() => setShowArchive(false)} onRestore={restoreExam} onHardDelete={hardDeleteExam} />}
                     {activeModal.type === 'time' && <TimeModal exam={exams.find(e => e.id === activeModal.examId)} onClose={() => setActiveModal({type:null, examId:null})} onSave={saveTime} />}
                     {activeModal.type === 'students' && <AssignModal exam={exams.find(e => e.id === activeModal.examId)} onClose={() => setActiveModal({type:null, examId:null})} onSave={saveStudents} />}
+                    {activeModal.type === 'editFile' && <EditFileModal exam={exams.find(e => e.id === activeModal.examId)} onClose={() => setActiveModal({type:null, examId:null})} onSave={saveAnswerNote} />}
+                    {activeModal.type === 'results' && <ResultsModal exam={exams.find(e => e.id === activeModal.examId)} onClose={() => setActiveModal({type:null, examId:null})} />}
                 </div>
             );
         };
