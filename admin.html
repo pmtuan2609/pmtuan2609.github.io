@@ -12,15 +12,15 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100;300;400;600&display=swap');
         body { font-family: 'Lexend', sans-serif; font-weight: 300; background-color: #f8fafc; }
-        b, strong, .font-black { font-weight: 600; }
+        b, strong, .font-semibold { font-weight: 600; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
-        if (sessionStorage.getItem('isAdmin') !== 'true') { window.location.href = 'login.html'; }
         const { useState, useEffect, useMemo } = React;
         const CATEGORIES = { luyen_tap: 'Luyện tập', bai_tap: 'Bài tập', kiem_tra: 'Kiểm tra' };
 
@@ -30,17 +30,23 @@
             return <span ref={ref} className={className}><i data-lucide={name} style={{width: size, height: size}}></i></span>;
         };
 
+        // --- CỬA SỔ (MODAL) HỌC SINH ---
         const StudentModal = ({ onClose }) => {
             const [students, setStudents] = useState(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'));
             const [input, setInput] = useState({ firstName: '', lastName: '', className: '' });
 
-            const saveSt = (data) => { setStudents(data); localStorage.setItem('tMath_Students', JSON.stringify(data)); };
+            const saveSt = (data) => { 
+                setStudents(data); 
+                localStorage.setItem('tMath_Students', JSON.stringify(data)); 
+            };
+
             const handleManual = () => {
                 if(!input.firstName || !input.lastName || !input.className) return alert("Điền đủ Lớp và Họ Tên!");
                 const newSt = { id: Date.now(), name: `${input.lastName} ${input.firstName}`.trim(), className: input.className.toUpperCase() };
                 saveSt([...students, newSt]);
                 setInput({ ...input, firstName: '', lastName: '' });
             };
+
             const handleExcel = (e) => {
                 const file = e.target.files[0];
                 const reader = new FileReader();
@@ -58,36 +64,41 @@
 
             return (
                 <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-4xl h-[80vh] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
-                        <div className="p-6 bg-indigo-600 text-white flex justify-between items-center">
-                            <h2 className="font-light uppercase tracking-[0.2em] flex items-center gap-2"><Icon name="users" size={20}/> Quản lý học sinh</h2>
+                    <div className="bg-white w-full max-w-4xl h-[80vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in duration-300">
+                        <div className="p-6 bg-indigo-600 text-white flex justify-between items-center shadow-lg">
+                            <h2 className="font-light uppercase tracking-[0.2em] flex items-center gap-2"><Icon name="users" size={20}/> Quản lý danh sách học sinh</h2>
                             <button onClick={onClose} className="p-2 hover:bg-indigo-500 rounded-full transition-colors"><Icon name="x" size={24}/></button>
                         </div>
-                        <div className="flex-1 flex flex-col md:flex-row bg-slate-50 overflow-hidden">
+                        <div className="flex-1 flex flex-col md:flex-row bg-slate-50 overflow-hidden text-left">
                             <div className="w-full md:w-80 p-6 border-r bg-white space-y-6 overflow-y-auto custom-scroll">
                                 <div className="space-y-4">
                                     <h3 className="text-[10px] font-semibold text-indigo-600 uppercase tracking-widest">Thêm thủ công</h3>
-                                    <input type="text" placeholder="Lớp (6A1...)" value={input.className} onChange={e=>setInput({...input, className:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
-                                    <input type="text" placeholder="Họ lót" value={input.lastName} onChange={e=>setInput({...input, lastName:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm" />
-                                    <input type="text" placeholder="Tên" value={input.firstName} onChange={e=>setInput({...input, firstName:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm" />
-                                    <button onClick={handleManual} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-normal text-xs uppercase tracking-widest">Thêm học sinh</button>
+                                    <input type="text" placeholder="Lớp (6A1, 6A3...)" value={input.className} onChange={e=>setInput({...input, className: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
+                                    <input type="text" placeholder="Họ lót" value={input.lastName} onChange={e=>setInput({...input, lastName: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
+                                    <input type="text" placeholder="Tên" value={input.firstName} onChange={e=>setInput({...input, firstName: e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
+                                    <button onClick={handleManual} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-normal text-xs uppercase tracking-widest shadow-lg shadow-indigo-100">Thêm vào lớp</button>
                                 </div>
-                                <div className="pt-6 border-t">
-                                    <h3 className="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest mb-4">Nhập Excel (Lớp | Họ lót | Tên)</h3>
-                                    <label className="block w-full py-4 px-4 bg-emerald-50 text-emerald-700 border border-dashed border-emerald-200 rounded-2xl font-semibold text-[10px] text-center cursor-pointer">
+                                <div className="pt-6 border-t border-slate-100">
+                                    <h3 className="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest mb-4">Nhập từ Excel</h3>
+                                    <label className="block w-full py-4 px-4 bg-emerald-50 text-emerald-700 border border-dashed border-emerald-200 rounded-2xl font-semibold text-[10px] text-center cursor-pointer hover:bg-emerald-100 transition-all">
                                         <Icon name="file-spreadsheet" size={20} className="block mx-auto mb-1" /> TẢI FILE EXCEL
                                         <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleExcel} />
                                     </label>
+                                    <p className="text-[9px] text-slate-400 mt-2 italic leading-relaxed">Cột 1: Lớp | Cột 2: Họ lót | Cột 3: Tên</p>
                                 </div>
                             </div>
                             <div className="flex-1 p-6 overflow-y-auto custom-scroll space-y-2">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Danh sách học sinh ({students.length})</h4>
+                                    <button onClick={()=>{if(confirm('Xóa hết?')) saveSt([]);}} className="text-[9px] font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded">XÓA TẤT CẢ</button>
+                                </div>
                                 {students.sort((a,b)=>a.className.localeCompare(b.className)).map((s, idx) => (
-                                    <div key={s.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:border-indigo-200 transition-all">
+                                    <div key={s.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-2xl hover:border-indigo-200 transition-all">
                                         <div className="flex items-center gap-4">
-                                            <span className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-[10px] font-semibold text-indigo-500">{s.className}</span>
+                                            <span className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-[10px] font-semibold text-indigo-500">{s.className}</span>
                                             <span className="text-sm text-slate-700">{s.name}</span>
                                         </div>
-                                        <button onClick={()=>saveSt(students.filter(i=>i.id!==s.id))} className="text-slate-300 hover:text-rose-500"><Icon name="trash-2" size={16}/></button>
+                                        <button onClick={()=>saveSt(students.filter(i=>i.id!==s.id))} className="text-slate-200 hover:text-rose-500 transition-colors"><Icon name="trash-2" size={16}/></button>
                                     </div>
                                 ))}
                             </div>
@@ -97,6 +108,7 @@
             );
         };
 
+        // --- GIAO DIỆN CHÍNH ---
         const App = () => {
             const [exams, setExams] = useState(() => JSON.parse(localStorage.getItem('tMath_Exams') || '[]'));
             const [showStudent, setShowStudent] = useState(false);
@@ -105,33 +117,40 @@
             const saveExam = () => {
                 if(!form.title || !form.customClass) return alert("Điền đủ Tiêu đề và Lớp!");
                 const updated = [...exams, { ...form, id: Date.now(), className: form.customClass.toUpperCase(), createdAt: new Date().toLocaleDateString('vi-VN') }];
-                setExams(updated); localStorage.setItem('tMath_Exams', JSON.stringify(updated));
+                setExams(updated); 
+                localStorage.setItem('tMath_Exams', JSON.stringify(updated));
                 setForm({...form, title: '', customClass: ''});
+                alert("Đăng bài thành công!");
             };
 
             return (
                 <div className="flex h-screen overflow-hidden text-slate-800 font-light">
                     <aside className="w-80 bg-white border-r shadow-xl z-20 flex flex-col p-6 shrink-0">
                         <div className="mb-8 text-indigo-600">
-                            <h1 className="text-xl font-normal uppercase tracking-[0.3em]">Quản trị KHTN</h1>
-                            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-1">Lê Thị Việt Hà</p>
+                            <h1 className="text-xl font-normal uppercase tracking-[0.3em] leading-none">Quản trị KHTN</h1>
+                            <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-2">Lê Thị Việt Hà</p>
                         </div>
                         <div className="grid grid-cols-2 gap-2 mb-8">
-                            <button onClick={() => setShowStudent(true)} className="flex flex-col items-center p-4 border border-slate-100 rounded-2xl text-[9px] uppercase hover:bg-indigo-600 hover:text-white transition-all"><Icon name="users" size={20} className="mb-1"/> Học sinh</button>
-                            <button className="flex flex-col items-center p-4 border border-slate-100 rounded-2xl text-[9px] uppercase hover:bg-indigo-600 hover:text-white transition-all"><Icon name="archive" size={20} className="mb-1"/> Lưu trữ</button>
+                            {/* Nút Học Sinh: Bây giờ chỉ set state, không nhảy link */}
+                            <button onClick={() => setShowStudent(true)} className="flex flex-col items-center p-4 border border-slate-100 rounded-[1.5rem] text-[9px] uppercase hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+                                <Icon name="users" size={20} className="mb-1"/> Học sinh
+                            </button>
+                            <button className="flex flex-col items-center p-4 border border-slate-100 rounded-[1.5rem] text-[9px] uppercase hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+                                <Icon name="archive" size={20} className="mb-1"/> Lưu trữ
+                            </button>
                         </div>
-                        <div className="flex-1 space-y-4 bg-slate-50/50 p-5 rounded-[2rem] border border-slate-100 overflow-y-auto custom-scroll">
+                        <div className="flex-1 space-y-4 bg-slate-50/50 p-5 rounded-[2rem] border border-slate-100 overflow-y-auto custom-scroll text-left">
                             <h3 className="text-[10px] font-semibold text-indigo-500 uppercase tracking-widest">Đăng bài mới</h3>
-                            <input type="text" placeholder="Tiêu đề..." value={form.title} onChange={e=>setForm({...form, title:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none font-light" />
-                            <input type="text" placeholder="Lớp (6A1, 7TH2...)" value={form.customClass} onChange={e=>setForm({...form, customClass:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none font-light" />
+                            <input type="text" placeholder="Tiêu đề..." value={form.title} onChange={e=>setForm({...form, title:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
+                            <input type="text" placeholder="Lớp (6A1, 7TH2...)" value={form.customClass} onChange={e=>setForm({...form, customClass:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
                             <div className="grid grid-cols-2 gap-3">
-                                <input type="number" value={form.duration} onChange={e=>setForm({...form, duration:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center font-light" />
-                                <input type="number" value={form.attempts} onChange={e=>setForm({...form, attempts:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center font-light" />
+                                <div><label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Thời gian</label><input type="number" value={form.duration} onChange={e=>setForm({...form, duration:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center" /></div>
+                                <div><label className="text-[8px] font-bold text-slate-400 uppercase ml-1">Lượt làm</label><input type="number" value={form.attempts} onChange={e=>setForm({...form, attempts:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-sm text-center" /></div>
                             </div>
-                            <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-xs font-light">
+                            <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})} className="w-full p-3 rounded-xl border border-slate-200 text-xs">
                                 {Object.entries(CATEGORIES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
-                            <button onClick={saveExam} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-normal uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 mt-2">Đăng lên hệ thống</button>
+                            <button onClick={saveExam} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-normal uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 mt-2">Đăng đề lên hệ thống</button>
                         </div>
                         <div className="mt-auto text-center pt-4 border-t border-slate-100">
                             <p className="text-[9px] font-semibold text-slate-300 uppercase tracking-widest">Bản quyền Lê Thị Việt Hà</p>
@@ -140,7 +159,7 @@
                     <main className="flex-1 overflow-y-auto p-10 custom-scroll bg-slate-50">
                         <div className="max-w-6xl mx-auto space-y-12">
                             {Object.entries(CATEGORIES).map(([key, label]) => (
-                                <section key={key}>
+                                <section key={key} className="text-left">
                                     <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-[0.4em] mb-6 flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-indigo-400"></div> {label}</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {exams.filter(e => e.category === key).map(e => (
@@ -158,6 +177,7 @@
                             ))}
                         </div>
                     </main>
+                    {/* MODAL HỌC SINH HIỆN TẠI ĐÂY */}
                     {showStudent && <StudentModal onClose={() => setShowStudent(false)} />}
                 </div>
             );
