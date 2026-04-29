@@ -11,26 +11,16 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* Sử dụng Inter để hiển thị mượt mà, rõ nét hơn trên hệ điều hành Windows */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f1f5f9; 
-            color: #334155;
-        }
-        
-        /* Tối ưu thanh cuộn cho Windows: Tăng kích thước để dễ thao tác bằng chuột */
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #334155; }
         .custom-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; border: 2px solid transparent; background-clip: padding-box; }
         
-        .active-tab { 
-            background-color: #4f46e5 !important; 
-            color: white !important; 
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); 
-        }
+        .active-tab { background-color: #4f46e5 !important; color: white !important; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
+        .icon-btn { display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 6px; transition: all 0.2s; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -47,6 +37,7 @@
             return <span ref={ref} className={className}><i data-lucide={name} style={{width: size, height: size}}></i></span>;
         };
 
+        // --- CỬA SỔ QUẢN LÝ HỌC SINH TỔNG ---
         const StudentModal = ({ onClose }) => {
             const [students, setStudents] = useState(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'));
             const [input, setInput] = useState({ firstName: '', lastName: '', className: 'Lớp 6' });
@@ -111,24 +102,23 @@
                                         <Icon name="upload-cloud" size={24} className="block mx-auto mb-2" /> TẢI FILE EXCEL LÊN
                                         <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleExcel} />
                                     </label>
-                                    <p className="text-xs text-slate-500 mt-3 bg-slate-100 p-3 rounded-lg leading-relaxed">Định dạng file: Cột 1 (Lớp) - Cột 2 (Họ lót) - Cột 3 (Tên)</p>
                                 </div>
                             </div>
                             <div className="flex-1 p-6 overflow-y-auto custom-scroll bg-slate-50">
                                 <div className="flex justify-between items-center mb-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                    <h4 className="font-bold text-slate-700">Tổng số học sinh: <span className="text-indigo-600">{students.length}</span></h4>
-                                    <button onClick={()=>{if(confirm('Bạn có chắc chắn muốn xóa toàn bộ danh sách?')) saveSt([]);}} className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                                    <h4 className="font-bold text-slate-700">Tổng số: <span className="text-indigo-600">{students.length}</span></h4>
+                                    <button onClick={()=>{if(confirm('Xóa toàn bộ danh sách?')) saveSt([]);}} className="text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
                                         <Icon name="trash-2" size={14}/> XÓA TẤT CẢ
                                     </button>
                                 </div>
                                 <div className="space-y-2">
                                     {students.sort((a,b)=>a.className.localeCompare(b.className)).map((s) => (
-                                        <div key={s.id} className="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-indigo-300 transition-all">
+                                        <div key={s.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
                                             <div className="flex items-center gap-4">
                                                 <span className="px-3 py-1 bg-indigo-50 rounded-lg text-xs font-bold text-indigo-700">{s.className}</span>
-                                                <span className="font-medium text-slate-700">{s.name}</span>
+                                                <span className="font-medium text-sm text-slate-700">{s.name}</span>
                                             </div>
-                                            <button onClick={()=>saveSt(students.filter(i=>i.id!==s.id))} className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"><Icon name="x" size={18}/></button>
+                                            <button onClick={()=>saveSt(students.filter(i=>i.id!==s.id))} className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"><Icon name="x" size={16}/></button>
                                         </div>
                                     ))}
                                 </div>
@@ -139,59 +129,205 @@
             );
         };
 
+        // --- CỬA SỔ CÀI ĐẶT THỜI GIAN ---
+        const TimeModal = ({ exam, onClose, onSave }) => {
+            const [openTime, setOpenTime] = useState(exam.openTime || '');
+            return (
+                <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="clock" className="text-indigo-600"/> Cài đặt giờ mở bài</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><Icon name="x"/></button>
+                        </div>
+                        <p className="text-sm text-slate-500 mb-4 line-clamp-2">{exam.title}</p>
+                        <input type="datetime-local" value={openTime} onChange={(e) => setOpenTime(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg text-sm mb-6 outline-none focus:ring-2 focus:ring-indigo-500" />
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 text-slate-600 font-semibold rounded-lg text-sm">Hủy</button>
+                            <button onClick={() => onSave(exam.id, openTime)} className="flex-1 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg text-sm shadow-md">Lưu cài đặt</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- CỬA SỔ GIAO BÀI CHO HỌC SINH ---
+        const AssignModal = ({ exam, onClose, onSave }) => {
+            const allStudents = useMemo(() => JSON.parse(localStorage.getItem('tMath_Students') || '[]'), []);
+            // Lọc học sinh theo khối của đề thi
+            const classStudents = allStudents.filter(s => s.className === exam.className);
+            const [selectedIds, setSelectedIds] = useState(exam.allowedStudents || []);
+
+            const toggleStudent = (id) => {
+                setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+            };
+
+            const selectAll = () => {
+                if (selectedIds.length === classStudents.length) setSelectedIds([]);
+                else setSelectedIds(classStudents.map(s => s.id));
+            };
+
+            return (
+                <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md h-[70vh] rounded-2xl shadow-2xl flex flex-col">
+                        <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Icon name="users" className="text-indigo-600"/> Giao bài: {exam.className}</h3>
+                                <p className="text-xs text-slate-500 mt-1 truncate max-w-[250px]">{exam.title}</p>
+                            </div>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><Icon name="x"/></button>
+                        </div>
+                        <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                            <span className="text-sm font-semibold text-slate-600">Đã chọn: {selectedIds.length}/{classStudents.length}</span>
+                            <button onClick={selectAll} className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg">Chọn tất cả</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 custom-scroll">
+                            {classStudents.length === 0 ? (
+                                <div className="text-center text-slate-400 text-sm mt-10">Chưa có học sinh nào thuộc {exam.className}</div>
+                            ) : (
+                                classStudents.sort((a,b)=>a.name.localeCompare(b.name)).map(s => (
+                                    <label key={s.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border-b border-slate-50">
+                                        <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => toggleStudent(s.id)} className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" />
+                                        <span className="text-sm font-medium text-slate-700">{s.name}</span>
+                                    </label>
+                                ))
+                            )}
+                        </div>
+                        <div className="p-4 border-t border-slate-100">
+                            <button onClick={() => onSave(exam.id, selectedIds)} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-md hover:bg-indigo-700 transition-colors">Lưu danh sách giao bài</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- CỬA SỔ LƯU TRỮ ĐỀ (THÙNG RÁC) ---
+        const ArchiveModal = ({ exams, onClose, onRestore, onHardDelete }) => {
+            const archivedExams = exams.filter(e => e.isArchived);
+            return (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-3xl h-[70vh] rounded-2xl shadow-2xl flex flex-col animate-in zoom-in duration-200">
+                        <div className="p-5 bg-slate-800 text-white flex justify-between items-center rounded-t-2xl">
+                            <h2 className="font-semibold text-lg flex items-center gap-2"><Icon name="archive" size={20}/> Kho Lưu Trữ Đề</h2>
+                            <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><Icon name="x" size={24}/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scroll space-y-3">
+                            {archivedExams.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                    <Icon name="inbox" size={48} className="mb-4 opacity-50"/>
+                                    <p className="text-sm font-medium">Kho lưu trữ trống</p>
+                                </div>
+                            ) : (
+                                archivedExams.map(e => (
+                                    <div key={e.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">{e.className}</span>
+                                                <span className="text-xs text-slate-400 font-medium">{CATEGORIES[e.category]}</span>
+                                            </div>
+                                            <h4 className="font-semibold text-slate-700 text-sm">{e.title}</h4>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => onRestore(e.id)} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
+                                                <Icon name="rotate-ccw" size={14}/> Khôi phục
+                                            </button>
+                                            <button onClick={() => onHardDelete(e.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1">
+                                                <Icon name="trash-2" size={14}/> Xóa hẳn
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- GIAO DIỆN CHÍNH ---
         const App = () => {
             const [exams, setExams] = useState(() => JSON.parse(localStorage.getItem('tMath_Exams') || '[]'));
             const [showStudent, setShowStudent] = useState(false);
-            const [activeClass, setActiveClass] = useState("");
+            const [showArchive, setShowArchive] = useState(false);
             
+            // State quản lý các popup cài đặt của từng đề
+            const [activeModal, setActiveModal] = useState({ type: null, examId: null });
+
+            const [activeClass, setActiveClass] = useState("");
             const [form, setForm] = useState({ 
-                title: '', 
-                grade: 'Lớp 6', 
-                category: 'luyen_tap',
-                duration: 45, 
-                attempts: 1, 
-                violations: 3 
+                title: '', grade: 'Lớp 6', category: 'luyen_tap',
+                duration: 45, attempts: 1, violations: 3 
             });
 
+            const activeExams = useMemo(() => exams.filter(e => !e.isArchived), [exams]);
+
             const uniqueClasses = useMemo(() => {
-                const classes = [...new Set(exams.map(e => e.className))].sort();
+                const classes = [...new Set(activeExams.map(e => e.className))].sort();
                 if (classes.length > 0 && !activeClass && classes.includes(activeClass) === false) {
                     setActiveClass(classes[0]);
                 }
                 return classes;
-            }, [exams, activeClass]);
+            }, [activeExams, activeClass]);
+
+            const updateExams = (newExams) => {
+                setExams(newExams);
+                localStorage.setItem('tMath_Exams', JSON.stringify(newExams));
+            };
 
             const saveExam = () => {
                 if(!form.title.trim()) return alert("Vui lòng nhập tên đề thi!");
                 const newExam = { 
-                    ...form, 
-                    id: Date.now(), 
-                    className: form.grade, 
-                    createdAt: new Date().toLocaleDateString('vi-VN') 
+                    ...form, id: Date.now(), className: form.grade, 
+                    createdAt: new Date().toLocaleDateString('vi-VN'),
+                    isArchived: false, allowedStudents: [], wordFile: null, openTime: ''
                 };
-                const updated = [...exams, newExam];
-                setExams(updated); 
-                localStorage.setItem('tMath_Exams', JSON.stringify(updated));
+                updateExams([...exams, newExam]);
                 setForm({...form, title: ''}); 
                 setActiveClass(form.grade);
             };
 
-            const delExam = (id) => {
-                if(confirm('Bạn có chắc chắn muốn xóa bài này?')) {
-                    const updated = exams.filter(e => e.id !== id);
-                    setExams(updated);
-                    localStorage.setItem('tMath_Exams', JSON.stringify(updated));
+            // Lưu trữ thay vì xóa
+            const archiveExam = (id) => {
+                updateExams(exams.map(e => e.id === id ? { ...e, isArchived: true } : e));
+            };
+
+            // Khôi phục từ kho lưu trữ
+            const restoreExam = (id) => {
+                updateExams(exams.map(e => e.id === id ? { ...e, isArchived: false } : e));
+            };
+
+            // Xóa vĩnh viễn
+            const hardDeleteExam = (id) => {
+                if(confirm('Bạn có chắc chắn muốn xóa vĩnh viễn đề này?')) {
+                    updateExams(exams.filter(e => e.id !== id));
                 }
             };
 
+            // Xử lý upload file Word giả lập
+            const handleWordUpload = (id, e) => {
+                const file = e.target.files[0];
+                if(file) updateExams(exams.map(ex => ex.id === id ? { ...ex, wordFile: file.name } : ex));
+            };
+
+            // Xử lý lưu thời gian
+            const saveTime = (id, time) => {
+                updateExams(exams.map(e => e.id === id ? { ...e, openTime: time } : e));
+                setActiveModal({ type: null, examId: null });
+            };
+
+            // Xử lý lưu học sinh
+            const saveStudents = (id, students) => {
+                updateExams(exams.map(e => e.id === id ? { ...e, allowedStudents: students } : e));
+                setActiveModal({ type: null, examId: null });
+            };
+
             const filteredColumns = useMemo(() => {
-                const list = exams.filter(e => e.className === activeClass);
+                const list = activeExams.filter(e => e.className === activeClass);
                 return {
                     luyen_tap: list.filter(e => e.category === 'luyen_tap'),
                     bai_tap: list.filter(e => e.category === 'bai_tap'),
                     kiem_tra: list.filter(e => e.category === 'kiem_tra')
                 };
-            }, [exams, activeClass]);
+            }, [activeExams, activeClass]);
 
             return (
                 <div className="flex h-screen overflow-hidden text-slate-800">
@@ -210,8 +346,11 @@
                             <button onClick={() => setShowStudent(true)} className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all">
                                 <Icon name="users" size={20} className="mb-1.5"/> Học sinh
                             </button>
-                            <button className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all">
+                            <button onClick={() => setShowArchive(true)} className="flex flex-col items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all relative">
                                 <Icon name="archive" size={20} className="mb-1.5"/> Lưu trữ
+                                {exams.filter(e=>e.isArchived).length > 0 && (
+                                    <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full"></span>
+                                )}
                             </button>
                         </div>
 
@@ -225,37 +364,34 @@
                                     <label className="block text-xs font-semibold text-slate-500 mb-1">Tên đề thi</label>
                                     <input type="text" placeholder="Nhập tên đề..." value={form.title} onChange={e=>setForm({...form, title:e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:border-indigo-500 focus:ring-indigo-100 outline-none transition-all" />
                                 </div>
-                                
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 mb-1">Khối</label>
-                                        <select value={form.grade} onChange={e=>setForm({...form, grade:e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:border-indigo-500 focus:ring-indigo-100 outline-none bg-white transition-all">
+                                        <select value={form.grade} onChange={e=>setForm({...form, grade:e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm outline-none bg-white">
                                             {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 mb-1">Loại bài</label>
-                                        <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:border-indigo-500 focus:ring-indigo-100 outline-none bg-white transition-all">
+                                        <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})} className="w-full p-2.5 rounded-lg border border-slate-300 text-sm outline-none bg-white">
                                             {Object.entries(CATEGORIES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                                         </select>
                                     </div>
                                 </div>
-
                                 <div className="grid grid-cols-3 gap-2">
                                     <div>
-                                        <label className="block text-[11px] font-semibold text-slate-500 mb-1 text-center whitespace-nowrap">Thời gian (p)</label>
-                                        <input type="number" min="1" value={form.duration} onChange={e=>setForm({...form, duration:e.target.value})} className="w-full p-2 rounded-lg border border-slate-300 text-sm font-medium text-center focus:ring-2 focus:border-indigo-500 outline-none" />
+                                        <label className="block text-[11px] font-semibold text-slate-500 mb-1 text-center">Thời gian (p)</label>
+                                        <input type="number" min="1" value={form.duration} onChange={e=>setForm({...form, duration:e.target.value})} className="w-full p-2 rounded-lg border border-slate-300 text-sm font-medium text-center outline-none" />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-semibold text-slate-500 mb-1 text-center whitespace-nowrap">Lượt làm</label>
-                                        <input type="number" min="1" value={form.attempts} onChange={e=>setForm({...form, attempts:e.target.value})} className="w-full p-2 rounded-lg border border-slate-300 text-sm font-medium text-center focus:ring-2 focus:border-indigo-500 outline-none" />
+                                        <label className="block text-[11px] font-semibold text-slate-500 mb-1 text-center">Lượt làm</label>
+                                        <input type="number" min="1" value={form.attempts} onChange={e=>setForm({...form, attempts:e.target.value})} className="w-full p-2 rounded-lg border border-slate-300 text-sm font-medium text-center outline-none" />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-semibold text-rose-500 mb-1 text-center whitespace-nowrap">Lỗi vi phạm</label>
-                                        <input type="number" min="0" value={form.violations} onChange={e=>setForm({...form, violations:e.target.value})} className="w-full p-2 rounded-lg border border-rose-300 text-rose-700 bg-rose-50 text-sm font-medium text-center focus:ring-2 focus:border-rose-500 outline-none" />
+                                        <label className="block text-[11px] font-semibold text-rose-500 mb-1 text-center">Lỗi vi phạm</label>
+                                        <input type="number" min="0" value={form.violations} onChange={e=>setForm({...form, violations:e.target.value})} className="w-full p-2 rounded-lg border border-rose-300 text-rose-700 bg-rose-50 text-sm font-medium text-center outline-none" />
                                     </div>
                                 </div>
-
                                 <button onClick={saveExam} className="w-full py-3 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm transition-all shadow-[0_4px_14px_0_rgba(79,70,229,0.39)] flex justify-center items-center gap-2">
                                     <Icon name="plus-circle" size={18}/> TẠO ĐỀ NGAY
                                 </button>
@@ -271,12 +407,11 @@
                         <header className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between shadow-sm shrink-0">
                             <div className="flex gap-2 overflow-x-auto custom-scroll pb-1">
                                 {uniqueClasses.length === 0 ? (
-                                    <span className="text-sm font-medium text-slate-400 bg-slate-50 px-4 py-2 rounded-lg border border-dashed border-slate-300">Chưa có dữ liệu bài tập nào</span>
+                                    <span className="text-sm font-medium text-slate-400 bg-slate-50 px-4 py-2 rounded-lg border border-dashed border-slate-300">Chưa có bài tập nào</span>
                                 ) : (
                                     uniqueClasses.map(cls => (
                                         <button 
-                                            key={cls} 
-                                            onClick={() => setActiveClass(cls)}
+                                            key={cls} onClick={() => setActiveClass(cls)}
                                             className={`px-5 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${activeClass === cls ? 'active-tab' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
                                         >
                                             <Icon name="folder-kanban" size={16}/> {cls}
@@ -285,13 +420,13 @@
                                 )}
                             </div>
                             <div className="px-4 border-l border-slate-200 ml-4 text-sm font-bold text-slate-500 whitespace-nowrap flex items-center gap-2">
-                                <Icon name="layers" size={18} className="text-indigo-400"/> {exams.length} Bài
+                                <Icon name="layers" size={18} className="text-indigo-400"/> {activeExams.length} Bài hoạt động
                             </div>
                         </header>
 
                         <div className="flex-1 flex p-6 gap-6 overflow-x-auto custom-scroll items-start">
                             {Object.entries(CATEGORIES).map(([key, label]) => (
-                                <div key={key} className="flex-1 min-w-[320px] max-w-md flex flex-col bg-slate-200/50 rounded-2xl p-4 border border-slate-200 max-h-full">
+                                <div key={key} className="flex-1 min-w-[340px] max-w-md flex flex-col bg-slate-200/50 rounded-2xl p-4 border border-slate-200 max-h-full">
                                     <div className="flex items-center justify-between mb-4 px-2">
                                         <h3 className="font-bold text-slate-700 uppercase text-sm flex items-center gap-2">
                                             <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-sm"></div> {label}
@@ -301,28 +436,48 @@
                                     
                                     <div className="flex-1 overflow-y-auto space-y-3 custom-scroll pr-1 text-left">
                                         {activeClass && filteredColumns[key].map(e => (
-                                            <div key={e.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all group relative">
+                                            <div key={e.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all flex flex-col">
                                                 <div className="flex justify-between items-start mb-2">
                                                     <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-bold">{e.className}</span>
-                                                    <button onClick={() => delExam(e.id)} className="p-1.5 text-slate-300 hover:bg-rose-100 hover:text-rose-600 rounded-md transition-colors opacity-0 group-hover:opacity-100 absolute top-3 right-3">
-                                                        <Icon name="trash-2" size={16}/>
-                                                    </button>
+                                                    {/* Các thẻ trạng thái nhỏ trên cùng */}
+                                                    <div className="flex gap-1">
+                                                        {e.wordFile && <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded flex items-center gap-0.5" title={e.wordFile}><Icon name="file-text" size={10}/> Đã tải file</span>}
+                                                        {e.openTime && <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Icon name="clock" size={10}/> Có lịch</span>}
+                                                    </div>
                                                 </div>
-                                                <h4 className="font-semibold text-slate-800 text-sm leading-snug mb-4 pr-6">{e.title}</h4>
                                                 
-                                                <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                                                <h4 className="font-semibold text-slate-800 text-sm leading-snug mb-3">{e.title}</h4>
+                                                
+                                                <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 mb-3">
                                                     <div className="flex flex-col items-center justify-center p-1.5 bg-slate-50 rounded-lg">
-                                                        <Icon name="clock" size={14} className="text-slate-400 mb-1"/>
                                                         <span className="text-[10px] font-bold text-slate-600">{e.duration}p</span>
                                                     </div>
                                                     <div className="flex flex-col items-center justify-center p-1.5 bg-slate-50 rounded-lg">
-                                                        <Icon name="rotate-ccw" size={14} className="text-indigo-400 mb-1"/>
                                                         <span className="text-[10px] font-bold text-slate-600">{e.attempts} Lần</span>
                                                     </div>
                                                     <div className="flex flex-col items-center justify-center p-1.5 bg-rose-50 rounded-lg">
-                                                        <Icon name="alert-triangle" size={14} className="text-rose-400 mb-1"/>
                                                         <span className="text-[10px] font-bold text-rose-600">{e.violations} Lỗi</span>
                                                     </div>
+                                                </div>
+
+                                                {/* Toolbar chức năng */}
+                                                <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-auto">
+                                                    <div className="flex gap-1.5">
+                                                        <label className="icon-btn bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white" title="Tải lên file Word">
+                                                            <Icon name="upload" size={14}/>
+                                                            <input type="file" accept=".doc,.docx" hidden onChange={(evt) => handleWordUpload(e.id, evt)} />
+                                                        </label>
+                                                        <button onClick={() => setActiveModal({type: 'students', examId: e.id})} className="icon-btn bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white relative" title="Giao bài cho lớp">
+                                                            <Icon name="users" size={14}/>
+                                                            {e.allowedStudents?.length > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full border border-white"></span>}
+                                                        </button>
+                                                        <button onClick={() => setActiveModal({type: 'time', examId: e.id})} className="icon-btn bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white" title="Cài đặt giờ mở bài">
+                                                            <Icon name="calendar-clock" size={14}/>
+                                                        </button>
+                                                    </div>
+                                                    <button onClick={() => archiveExam(e.id)} className="icon-btn bg-slate-100 text-slate-400 hover:bg-slate-700 hover:text-white" title="Lưu trữ đề (Xóa)">
+                                                        <Icon name="archive-x" size={14}/>
+                                                    </button>
                                                 </div>
                                             </div>
                                         ))}
@@ -338,7 +493,11 @@
                         </div>
                     </main>
 
+                    {/* RENDER MODALS */}
                     {showStudent && <StudentModal onClose={() => setShowStudent(false)} />}
+                    {showArchive && <ArchiveModal exams={exams} onClose={() => setShowArchive(false)} onRestore={restoreExam} onHardDelete={hardDeleteExam} />}
+                    {activeModal.type === 'time' && <TimeModal exam={exams.find(e => e.id === activeModal.examId)} onClose={() => setActiveModal({type:null, examId:null})} onSave={saveTime} />}
+                    {activeModal.type === 'students' && <AssignModal exam={exams.find(e => e.id === activeModal.examId)} onClose={() => setActiveModal({type:null, examId:null})} onSave={saveStudents} />}
                 </div>
             );
         };
