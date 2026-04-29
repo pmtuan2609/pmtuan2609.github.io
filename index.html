@@ -1,97 +1,54 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Trang cá nhân | Thầy/ Cô …</title>
-  <meta name="description" content="Website cá nhân giáo viên – chia sẻ tài liệu, bài giảng, và hoạt động lớp." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Helvetica Neue", "Noto Sans", sans-serif; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tMath Student | Hệ thống Ôn tập KHTN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;900&display=swap');
+        body { font-family: 'Lexend', sans-serif; background-color: #f8fafc; overflow: hidden; }
+        .word-content img { max-width: 100%; border-radius: 12px; margin: 16px 0; }
+        .mini-map-btn { transition: all 0.1s; cursor: pointer; }
+        .mini-map-btn.done { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; }
+        .column-scroll::-webkit-scrollbar { width: 4px; }
+        .column-scroll::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-  <!-- Header -->
-  <header class="bg-white border-b sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-      <a href="#" class="font-extrabold text-xl">Tên miền của bạn</a>
-      <nav class="hidden md:flex gap-6 text-sm">
-        <a href="#tai-lieu" class="hover:text-indigo-600">Tài liệu</a>
-        <a href="#bai-giang" class="hover:text-indigo-600">Bài giảng</a>
-        <a href="#du-an" class="hover:text-indigo-600">Dự án</a>
-        <a href="#lien-he" class="hover:text-indigo-600">Liên hệ</a>
-      </nav>
-    </div>
-  </header>
+<body>
+    <div id="root"></div>
 
-  <!-- Hero -->
-  <section class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
-    <div class="max-w-6xl mx-auto px-4 py-20 md:py-28 grid md:grid-cols-2 gap-10 items-center">
-      <div>
-        <h1 class="text-4xl md:text-5xl font-extrabold leading-tight">Chào mừng đến website cá nhân</h1>
-        <p class="mt-4 text-white/90">Chia sẻ tài nguyên dạy học, hoạt động trải nghiệm, và các dự án chuyển đổi số – dành cho học sinh, phụ huynh và đồng nghiệp.</p>
-        <div class="mt-8 flex gap-3">
-          <a href="#tai-lieu" class="px-5 py-3 rounded-xl bg-white text-indigo-700 font-semibold shadow hover:shadow-md">Xem tài liệu</a>
-          <a href="#lien-he" class="px-5 py-3 rounded-xl ring-1 ring-white/60 font-semibold hover:bg-white/10">Liên hệ</a>
-        </div>
-      </div>
-      <div class="bg-white/10 rounded-3xl p-6 ring-1 ring-white/20 shadow-lg">
-        <ul class="space-y-3 text-sm">
-          <li class="flex justify-between"><span>Đề kiểm tra & bài tập</span><span class="font-semibold">\LaTeX, PDF</span></li>
-          <li class="flex justify-between"><span>Hoạt động trải nghiệm</span><span class="font-semibold">Kế hoạch tháng</span></li>
-          <li class="flex justify-between"><span>Tài liệu tham khảo</span><span class="font-semibold">TT22, CT2018</span></li>
-          <li class="flex justify-between"><span>Kho hình minh hoạ</span><span class="font-semibold">PNG, SVG</span></li>
-        </ul>
-      </div>
-    </div>
-  </section>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-  <!-- Sections -->
-  <main class="max-w-6xl mx-auto px-4 py-14 space-y-20">
-    <section id="tai-lieu">
-      <h2 class="text-2xl font-bold">\ud83d\udcc4 Tài liệu mới</h2>
-      <div class="mt-6 grid md:grid-cols-3 gap-6">
-        <a class="block p-5 bg-white rounded-2xl shadow hover:shadow-md border" href="#">Bộ đề "Tính đơn điệu & cực trị"</a>
-        <a class="block p-5 bg-white rounded-2xl shadow hover:shadow-md border" href="#">Bài tập Đúng/Sai KHTN6 – Oxygen</a>
-        <a class="block p-5 bg-white rounded-2xl shadow hover:shadow-md border" href="#">Template tkz-tab bảng biến thiên</a>
-      </div>
-    </section>
+        const Icon = ({ name, size = 18, className = "" }) => {
+            const ref = React.useRef(null);
+            useEffect(() => { if (window.lucide) window.lucide.createIcons({ root: ref.current }); }, [name]);
+            return <span ref={ref} className={className}><i data-lucide={name} style={{width: size, height: size}}></i></span>;
+        };
 
-    <section id="bai-giang">
-      <h2 class="text-2xl font-bold">\ud83d\udcda Bài giảng</h2>
-      <p class="mt-3 text-slate-600">Nhúng slide hoặc video: Google Drive, YouTube, hoặc file tĩnh.</p>
-      <div class="mt-6 aspect-video bg-white rounded-2xl shadow border flex items-center justify-center text-slate-500">
-        Nhúng video bài giảng tại đây
-      </div>
-    </section>
+        const App = () => {
+            const [view, setView] = useState('quiz'); // Chế độ mặc định quiz để xem thiết kế
+            const [ans, setAns] = useState({});
 
-    <section id="du-an">
-      <h2 class="text-2xl font-bold">\ud83d\udee0\ufe0f Dự án chuyển đổi số</h2>
-      <ul class="mt-4 list-disc pl-6 text-slate-700 space-y-1">
-        <li>ChatGPT hỗ trợ công tác chủ nhiệm – quy trình & biểu mẫu.</li>
-        <li>Tự động hoá Google Sheets – quản lý tiến độ nội dung.</li>
-        <li>Kho LaTeX cho đề kiểm tra, bài giảng và hình minh hoạ TikZ.</li>
-      </ul>
-    </section>
+            return (
+                <div className="h-screen flex flex-col overflow-hidden">
+                    {/* TOP BAR */}
+                    <header className="bg-white border-b px-8 py-4 flex justify-between items-center shadow-sm shrink-0 z-10">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                                <Icon name="atom" size={28}/>
+                            </div>
+                            <div className="text-left">
+                                <h2 className="font-extrabold text-slate-800 text-lg uppercase tracking-tight leading-tight">Ôn tập Khoa học tự nhiên</h2>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Giáo viên: Cô Lê Thị Việt Hà</p>
+                            </div>
+                        </div>
 
-    <section id="lien-he">
-      <h2 class="text-2xl font-bold">\ud83d\udce7 Liên hệ</h2>
-      <p class="mt-3">Email: <a class="text-indigo-700 font-semibold" href="mailto:you@example.com">you@example.com</a></p>
-    </section>
-  </main>
-
-  <footer class="border-t">
-    <div class="max-w-6xl mx-auto px-4 py-10 text-sm text-slate-500 flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
-      <p>© <span id="y"></span> Tên của bạn. All rights reserved.</p>
-      <a class="hover:text-slate-700" href="https://github.com/">Được xây dựng trên GitHub Pages</a>
-    </div>
-  </footer>
-
-  <script>
-    document.getElementById('y').textContent = new Date().getFullYear();
-  </script>
-</body>
-</html>
+                        <div className="flex items-center gap-10">
+                            <div className="flex items-center gap-3 bg-slate-50 px-6 py-2.5 rounded-2xl border border-slate-100">
+                                <Icon name="clock" className="text
